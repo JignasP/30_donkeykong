@@ -6,6 +6,8 @@ PLAYER_W, PLAYER_H = 20, 28
 BARREL_R, BARREL_SPEED = 10, 140
 WALK_SPEED, CLIMB_SPEED, JUMP_SPEED, GRAVITY = 170, 110, 380, 900
 BG = (15, 15, 25)
+JUMP_EFFECT_DURATION = 0.8
+JUMP_EFFECTS = []
 
 # (x_left, x_right, y_at_left, y_at_right)
 PLATFORMS = [
@@ -35,7 +37,21 @@ def theme_color(score):
 
 def on_barrel_jumped(player, barrel):
     """Called when the player clears a barrel; add a bonus effect here."""
-    pass
+    JUMP_EFFECTS.append(
+        {
+            "text": "+100",
+            "pos": pygame.Vector2(barrel.pos),
+            "remaining": JUMP_EFFECT_DURATION,
+        }
+    )
+
+
+def update_jump_effects(dt):
+    """Move, age, and discard completed barrel-jump effects."""
+    for effect in JUMP_EFFECTS:
+        effect["pos"].y -= 35 * dt
+        effect["remaining"] -= dt
+    JUMP_EFFECTS[:] = [effect for effect in JUMP_EFFECTS if effect["remaining"] > 0]
 
 
 def score_multiplier(score):
@@ -189,6 +205,10 @@ def draw_scene(screen, font, player, barrels, score, lives, state):
     body = pygame.Rect(0, 0, PLAYER_W, PLAYER_H)
     body.midbottom = (player.pos.x, player.pos.y)
     pygame.draw.rect(screen, (50, 180, 240), body)
+    for effect in JUMP_EFFECTS:
+        label = font.render(effect["text"], True, (255, 230, 90))
+        label.set_alpha(round(255 * effect["remaining"] / JUMP_EFFECT_DURATION))
+        screen.blit(label, label.get_rect(center=effect["pos"]))
     hud = font.render(f"Score {score}   Lives {lives}   R = reset", True, (240, 240, 240))
     screen.blit(hud, (10, 8))
     if state != "play":
@@ -205,6 +225,7 @@ def main():
     font = pygame.font.Font(None, 28)
     player, barrels = Player(), []
     score, lives, state, spawn_timer = 0, 3, "play", 1.0
+    JUMP_EFFECTS.clear()
     running = True
     while running:
         dt = min(clock.tick(60) / 1000, 0.05)
@@ -216,6 +237,7 @@ def main():
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_r:
                 player.reset()
                 barrels.clear()
+                JUMP_EFFECTS.clear()
                 score, lives, state = 0, 3, "play"
         if state == "play":
             player.update(dt, pygame.key.get_pressed())
@@ -230,6 +252,7 @@ def main():
                     lives -= 1
                     player.reset()
                     barrels.clear()
+                    JUMP_EFFECTS.clear()
                     state = "play" if lives > 0 else "lose"
                     break
                 above = 0 < barrel.pos.y - player.pos.y + BARREL_R < 40
@@ -241,6 +264,7 @@ def main():
             if player.center().distance_to(pygame.Vector2(PRINCESS_POS)) < 24:
                 score += 1000
                 state = "win"
+        update_jump_effects(dt)
         draw_scene(screen, font, player, barrels, score, lives, state)
         pygame.display.flip()
     pygame.quit()
