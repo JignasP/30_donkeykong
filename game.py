@@ -8,6 +8,7 @@ WALK_SPEED, CLIMB_SPEED, JUMP_SPEED, GRAVITY = 170, 110, 380, 900
 BG = (15, 15, 25)
 JUMP_EFFECT_DURATION = 0.8
 JUMP_EFFECTS = []
+SCORE_MULTIPLIER_THRESHOLD = 500
 
 # (x_left, x_right, y_at_left, y_at_right)
 PLATFORMS = [
@@ -39,7 +40,7 @@ def on_barrel_jumped(player, barrel):
     """Called when the player clears a barrel; add a bonus effect here."""
     JUMP_EFFECTS.append(
         {
-            "text": "+100",
+            "text": f"+{player.last_barrel_bonus}",
             "pos": pygame.Vector2(barrel.pos),
             "remaining": JUMP_EFFECT_DURATION,
         }
@@ -56,7 +57,7 @@ def update_jump_effects(dt):
 
 def score_multiplier(score):
     """Return a multiplier applied to points earned from clearing a barrel, or None for the default 1x."""
-    pass
+    return 2 if score >= SCORE_MULTIPLIER_THRESHOLD else None
 
 
 class Player:
@@ -68,6 +69,7 @@ class Player:
         self.vel = pygame.Vector2()
         self.on_ground = True
         self.ladder = None
+        self.last_barrel_bonus = 100
 
     def center(self):
         return pygame.Vector2(self.pos.x, self.pos.y - PLAYER_H / 2)
@@ -258,7 +260,8 @@ def main():
                 above = 0 < barrel.pos.y - player.pos.y + BARREL_R < 40
                 if not player.on_ground and above and abs(barrel.pos.x - player.pos.x) < 12 and not barrel.scored:
                     barrel.scored = True
-                    score += int(100 * (score_multiplier(score) or 1))
+                    player.last_barrel_bonus = int(100 * (score_multiplier(score) or 1))
+                    score += player.last_barrel_bonus
                     on_barrel_jumped(player, barrel)
             barrels[:] = [b for b in barrels if b.pos.y < HEIGHT + 30]
             if player.center().distance_to(pygame.Vector2(PRINCESS_POS)) < 24:
